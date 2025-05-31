@@ -141,6 +141,54 @@ def update_container(branch):
         log_message(f"Unexpected error during deployment: {e}")
         return False
 
+def deploy_container(environment, container_name, image_name, host_port, container_port, node_env):
+    """Deploy a Docker container"""
+    try:
+        log_message(f"Starting deployment for {environment} environment")
+        log_message(f"Image: {image_name}")
+        log_message(f"Container: {container_name}")
+        
+        # Pull the latest image
+        log_message(f"Pulling image: {image_name}")
+        pull_result = subprocess.run(['docker', 'pull', image_name], 
+                                   capture_output=True, text=True, check=True)
+        log_message(f"Pull successful: {pull_result.stdout.strip()}")
+        
+        # Stop existing container if running
+        log_message(f"Stopping existing container: {container_name}")
+        subprocess.run(['docker', 'stop', container_name], 
+                      capture_output=True, text=True)
+        
+        # Remove existing container
+        log_message(f"Removing existing container: {container_name}")
+        subprocess.run(['docker', 'rm', container_name], 
+                      capture_output=True, text=True)
+        
+        # Start new container
+        docker_cmd = [
+            'docker', 'run', '-d',
+            '--name', container_name,
+            '-p', f'{host_port}:{container_port}',
+            '-e', f'NODE_ENV={node_env}',
+            image_name
+        ]
+        
+        log_message(f"Starting new container with command: {' '.join(docker_cmd)}")
+        run_result = subprocess.run(docker_cmd, capture_output=True, text=True, check=True)
+        
+        container_id = run_result.stdout.strip()
+        log_message(f"Container started successfully with ID: {container_id}")
+        
+        return True
+        
+    except subprocess.CalledProcessError as e:
+        log_message(f"Docker command failed: {e}")
+        log_message(f"Error output: {e.stderr}")
+        return False
+    except Exception as e:
+        log_message(f"Deployment error: {str(e)}")
+        return False
+
 @app.route('/webhook', methods=['POST'])
 def handle_webhook():
     """Handle webhook from GitHub or Docker Hub"""
