@@ -7,11 +7,34 @@ import subprocess
 import logging
 from flask import Flask, request, jsonify
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
 
-# Configuration
-WEBHOOK_SECRET = "your-secret-key-here"  # Change this!
+# Configuration from environment variables
+WEBHOOK_SECRET = os.getenv('WEBHOOK_SECRET', 'your-secret-key-here')
+WEBHOOK_PORT = int(os.getenv('WEBHOOK_PORT', 9000))
+
+# Docker configuration
+DOCKER_REGISTRY = os.getenv('DOCKER_REGISTRY', 'patabudlong')
+DOCKER_IMAGE_NAME = os.getenv('DOCKER_IMAGE_NAME', 'tripbundles-website')
+
+# Development configuration
+DEV_CONTAINER_NAME = os.getenv('DEV_CONTAINER_NAME', 'tripbundles-dev')
+DEV_HOST_PORT = os.getenv('DEV_HOST_PORT', '3001')
+DEV_CONTAINER_PORT = os.getenv('DEV_CONTAINER_PORT', '3000')
+DEV_IMAGE_TAG = os.getenv('DEV_IMAGE_TAG', 'latest-dev')
+NODE_ENV_DEV = os.getenv('NODE_ENV_DEV', 'development')
+
+# Production configuration
+PROD_CONTAINER_NAME = os.getenv('PROD_CONTAINER_NAME', 'tripbundles-prod')
+PROD_HOST_PORT = os.getenv('PROD_HOST_PORT', '3000')
+PROD_CONTAINER_PORT = os.getenv('PROD_CONTAINER_PORT', '3000')
+PROD_IMAGE_TAG = os.getenv('PROD_IMAGE_TAG', 'latest')
+NODE_ENV_PROD = os.getenv('NODE_ENV_PROD', 'production')
 
 # Cross-platform log file path
 if os.name == 'nt':  # Windows
@@ -56,22 +79,25 @@ def update_container(branch):
         if branch == "develop":
             log_message("Starting development deployment...")
             
+            # Build image name
+            image_name = f"{DOCKER_REGISTRY}/{DOCKER_IMAGE_NAME}:{DEV_IMAGE_TAG}"
+            
             # Pull latest dev image
-            subprocess.run(["docker", "pull", "patabudlong/tripbundles-website:latest-dev"], check=True)
+            subprocess.run(["docker", "pull", image_name], check=True)
             
             # Stop and remove existing container
-            subprocess.run(["docker", "stop", "tripbundles-dev"], check=False)
-            subprocess.run(["docker", "rm", "tripbundles-dev"], check=False)
+            subprocess.run(["docker", "stop", DEV_CONTAINER_NAME], check=False)
+            subprocess.run(["docker", "rm", DEV_CONTAINER_NAME], check=False)
             
             # Start new container
             subprocess.run([
                 "docker", "run", "-d",
-                "--name", "tripbundles-dev",
-                "-p", "3001:3000",
-                "-e", "NODE_ENV=development",
-                "-e", "PORT=3000",
+                "--name", DEV_CONTAINER_NAME,
+                "-p", f"{DEV_HOST_PORT}:{DEV_CONTAINER_PORT}",
+                "-e", f"NODE_ENV={NODE_ENV_DEV}",
+                "-e", f"PORT={DEV_CONTAINER_PORT}",
                 "--restart", "unless-stopped",
-                "patabudlong/tripbundles-website:latest-dev"
+                image_name
             ], check=True)
             
             log_message("Development deployment completed successfully")
@@ -80,22 +106,25 @@ def update_container(branch):
         elif branch == "master":
             log_message("Starting production deployment...")
             
+            # Build image name
+            image_name = f"{DOCKER_REGISTRY}/{DOCKER_IMAGE_NAME}:{PROD_IMAGE_TAG}"
+            
             # Pull latest prod image
-            subprocess.run(["docker", "pull", "patabudlong/tripbundles-website:latest"], check=True)
+            subprocess.run(["docker", "pull", image_name], check=True)
             
             # Stop and remove existing container
-            subprocess.run(["docker", "stop", "tripbundles-prod"], check=False)
-            subprocess.run(["docker", "rm", "tripbundles-prod"], check=False)
+            subprocess.run(["docker", "stop", PROD_CONTAINER_NAME], check=False)
+            subprocess.run(["docker", "rm", PROD_CONTAINER_NAME], check=False)
             
             # Start new container
             subprocess.run([
                 "docker", "run", "-d",
-                "--name", "tripbundles-prod",
-                "-p", "3000:3000",
-                "-e", "NODE_ENV=production",
-                "-e", "PORT=3000",
+                "--name", PROD_CONTAINER_NAME,
+                "-p", f"{PROD_HOST_PORT}:{PROD_CONTAINER_PORT}",
+                "-e", f"NODE_ENV={NODE_ENV_PROD}",
+                "-e", f"PORT={PROD_CONTAINER_PORT}",
                 "--restart", "unless-stopped",
-                "patabudlong/tripbundles-website:latest"
+                image_name
             ], check=True)
             
             log_message("Production deployment completed successfully")
@@ -161,19 +190,21 @@ def deployment_status():
     """Check deployment status"""
     try:
         # Check if containers are running
-        dev_status = subprocess.run(["docker", "ps", "--filter", "name=tripbundles-dev", "--format", "{{.Status}}"], 
+        dev_status = subprocess.run(["docker", "ps", "--filter", f"name={DEV_CONTAINER_NAME}", "--format", "{{.Status}}"], 
                                    capture_output=True, text=True)
-        prod_status = subprocess.run(["docker", "ps", "--filter", "name=tripbundles-prod", "--format", "{{.Status}}"], 
+        prod_status = subprocess.run(["docker", "ps", "--filter", f"name={PROD_CONTAINER_NAME}", "--format", "{{.Status}}"], 
                                     capture_output=True, text=True)
         
         return jsonify({
             "development": {
-                "container": "tripbundles-dev",
-                "status": dev_status.stdout.strip() or "Not running"
+                "container": DEV_CONTAINER_NAME,
+                "status": dev_status.stdout.strip() or "Not running",
+                "port": DEV_HOST_PORT
             },
             "production": {
-                "container": "tripbundles-prod", 
-                "status": prod_status.stdout.strip() or "Not running"
+                "container": PROD_CONTAINER_NAME, 
+                "status": prod_status.stdout.strip() or "Not running",
+                "port": PROD_HOST_PORT
             }
         }), 200
         
@@ -195,5 +226,5 @@ def index():
     }), 200
 
 if __name__ == '__main__':
-    log_message("Starting webhook server on port 9000...")
-    app.run(host='0.0.0.0', port=9000, debug=False)
+    log_message(f"Starting webhook server on port {WEBHOOK_PORT}...")
+    app.run(host='0.0.0.0', port=WEBHOOK_PORT, debug=False)
