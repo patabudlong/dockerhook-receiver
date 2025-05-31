@@ -143,42 +143,78 @@ def update_container(branch):
 
 @app.route('/webhook', methods=['POST'])
 def handle_webhook():
-    """Handle Docker Hub webhook"""
+    """Handle webhook from GitHub or Docker Hub"""
     try:
         # Get the payload
-        payload_body = request.get_data()
-        signature_header = request.headers.get('X-Hub-Signature-256')
-        
-        # Skip signature verification for Docker Hub webhooks
-        # Docker Hub doesn't send signature headers like GitHub does
-        # if WEBHOOK_SECRET and not verify_signature(payload_body, signature_header):
-        #     log_message("Invalid webhook signature")
-        #     return jsonify({"error": "Invalid signature"}), 401
-        
-        # Parse JSON payload
         payload = request.get_json()
         
-        # Only handle push events
-        if request.headers.get('X-GitHub-Event') != 'push':
-            log_message(f"Ignoring non-push event: {request.headers.get('X-GitHub-Event')}")
-            return jsonify({"message": "Event ignored"}), 200
+        # Check if this is a GitHub webhook
+        github_event = request.headers.get('X-GitHub-Event')
         
-        # Extract branch name
-        ref = payload.get('ref', '')
-        branch = ref.replace('refs/heads/', '')
-        
-        log_message(f"Webhook received for branch: {branch}")
-        
-        # Update container
-        success = update_container(branch)
-        
-        if success:
-            return jsonify({"message": f"Deployment triggered for {branch}"}), 200
-        else:
-            return jsonify({"error": f"Deployment failed for {branch}"}), 500
+        if github_event:
+            # GitHub webhook handling
+            if github_event != 'push':
+                log_message(f"Ignoring non-push event: {github_event}")
+                return jsonify({"status": "ignored", "message": f"Event {github_event} not supported"}), 200
             
+            # Handle GitHub push events (existing code)
+            ref = payload.get('ref', '')
+            branch = ref.replace('refs/heads/', '')
+            
+            log_message(f"Webhook received for branch: {branch}")
+            
+            # Update container
+            success = update_container(branch)
+            
+            if success:
+                return jsonify({"message": f"Deployment triggered for {branch}"}), 200
+            else:
+                return jsonify({"error": f"Deployment failed for {branch}"}), 500
+            
+        else:
+            # Docker Hub webhook handling
+            log_message("Processing Docker Hub webhook")
+            
+            # Docker Hub webhook payload structure
+            if 'push_data' in payload and 'repository' in payload:
+                repo_name = payload['repository']['repo_name']
+                tag = payload['push_data']['tag']
+                
+                log_message(f"Docker Hub push: {repo_name}:{tag}")
+                
+                # Determine environment based on tag
+                if tag == 'latest-dev':
+                    environment = 'development'
+                    container_name = DEV_CONTAINER_NAME
+                    host_port = DEV_HOST_PORT
+                    container_port = DEV_CONTAINER_PORT
+                    node_env = NODE_ENV_DEV
+                elif tag == 'latest':
+                    environment = 'production'
+                    container_name = PROD_CONTAINER_NAME
+                    host_port = PROD_HOST_PORT
+                    container_port = PROD_CONTAINER_PORT
+                    node_env = NODE_ENV_PROD
+                else:
+                    log_message(f"Ignoring tag: {tag}")
+                    return jsonify({"status": "ignored", "message": f"Tag {tag} not configured"}), 200
+                
+                # Deploy the container
+                image_name = f"{DOCKER_REGISTRY}/{DOCKER_IMAGE_NAME}:{tag}"
+                deploy_container(environment, container_name, image_name, host_port, container_port, node_env)
+                
+                return jsonify({
+                    "status": "success",
+                    "message": f"Deployment completed for {environment}",
+                    "tag": tag,
+                    "environment": environment
+                }), 200
+            else:
+                log_message("Unknown webhook format")
+                return jsonify({"error": "Unknown webhook format"}), 400
+        
     except Exception as e:
-        log_message(f"Webhook handling error: {e}")
+        log_message(f"Error processing webhook: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/health', methods=['GET'])
