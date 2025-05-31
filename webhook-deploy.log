@@ -28,3 +28,17 @@
  * Running on http://192.168.1.2:9000
 2025-05-31 09:30:14,547 - INFO - [33mPress CTRL+C to quit[0m
 2025-05-31 09:30:21,095 - INFO - 192.168.1.2 - - [31/May/2025 09:30:21] "GET / HTTP/1.1" 200 -
+2025-05-31 09:32:01,592 - INFO - 192.168.1.2 - - [31/May/2025 09:32:01] "GET /status HTTP/1.1" 200 -
+2025-05-31 09:34:28,965 - INFO - 192.168.1.2 - - [31/May/2025 09:34:28] "GET / HTTP/1.1" 200 -
+2025-05-31 09:35:20,913 - INFO - 192.168.1.2 - - [31/May/2025 09:35:20] "GET /status HTTP/1.1" 200 -
+2025-05-31 09:39:55,657 - INFO - Starting webhook server on port 9000...
+2025-05-31 09:39:55,676 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:9000
+ * Running on http://192.168.1.2:9000
+2025-05-31 09:39:55,676 - INFO - [33mPress CTRL+C to quit[0m
+2025-05-31 09:40:02,252 - INFO - 192.168.1.2 - - [31/May/2025 09:40:02] "GET /status HTTP/1.1" 200 -
+2025-05-31 09:40:09,315 - INFO - 192.168.1.2 - - [31/May/2025 09:40:09] "GET /status HTTP/1.1" 200 -
+2025-05-31 09:44:57,429 - INFO - 192.168.1.2 - - [31/May/2025 09:44:57] "GET /status HTTP/1.1" 200 -
+2025-05-31 09:45:50,765 - INFO - 192.168.1.2 - - [31/May/2025 09:45:50] "GET /status HTTP/1.1" 200 -
+2025-05-31 09:46:07,126 - INFO - 192.168.1.2 - - [31/May/2025 09:46:07] "GET / HTTP/1.1" 200 -
