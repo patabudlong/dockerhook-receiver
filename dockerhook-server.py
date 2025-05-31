@@ -143,16 +143,17 @@ def update_container(branch):
 
 @app.route('/webhook', methods=['POST'])
 def handle_webhook():
-    """Handle GitHub webhook"""
+    """Handle Docker Hub webhook"""
     try:
         # Get the payload
         payload_body = request.get_data()
         signature_header = request.headers.get('X-Hub-Signature-256')
         
-        # Verify signature (optional but recommended)
-        if WEBHOOK_SECRET and not verify_signature(payload_body, signature_header):
-            log_message("Invalid webhook signature")
-            return jsonify({"error": "Invalid signature"}), 401
+        # Skip signature verification for Docker Hub webhooks
+        # Docker Hub doesn't send signature headers like GitHub does
+        # if WEBHOOK_SECRET and not verify_signature(payload_body, signature_header):
+        #     log_message("Invalid webhook signature")
+        #     return jsonify({"error": "Invalid signature"}), 401
         
         # Parse JSON payload
         payload = request.get_json()
